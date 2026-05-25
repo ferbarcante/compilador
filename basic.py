@@ -16,14 +16,14 @@ class IllegalCharError(Error):
         super().__init__('Illegal Character', details)
 
 # tokens
-TT_INT = 'TT_INT'
-TT_FLOAT = 'TT_FLOAT'
-TT_PLUS = 'TT_PLUS'
-TT_MINUS = 'TT_MINUS'
-TT_MUL = 'TT_MUL'
-TT_DIV = 'TT_DIV'
-TT_LPAREN = 'TT_LPAREN'
-TT_RPAREN = 'TT_RPAREN'
+TT_INT = 'INT'
+TT_FLOAT = 'FLOAT'
+TT_PLUS = 'PLUS'
+TT_MINUS = 'MINUS'
+TT_MUL = 'MUL'
+TT_DIV = 'DIV'
+TT_LPAREN = 'LPAREN'
+TT_RPAREN = 'RPAREN'
 
 class Token:
     def __init__(self, type_, value=None):
@@ -31,7 +31,10 @@ class Token:
         self.value = value
 
     def __repr__(self):
-        return f'Token({self.type}, {self.value})'
+        if self.value != None:
+            return f'{self.type}:{self.value}'
+        return f'{self.type}'
+    
     
     
 class Lexer:
