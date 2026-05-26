@@ -18,8 +18,9 @@ class IllegalCharError(Error):
     def __init__(self,pos_start,pos_end, details):
         super().__init__(pos_start,pos_end,'Illegal Character', details)
 
+# position
 class Position:
-    def __init__(self,idx, ln, col, fn, ftxt):
+    def __init__(self, idx, ln, col, fn, ftxt):
         self.idx = idx
         self.ln = ln
         self.col = col 
@@ -34,8 +35,6 @@ class Position:
 
     def copy(self):
         return Position(self.idx, self.ln, self.col, self.fn, self.ftxt)   
-
-
 
 
 # tokens
@@ -70,7 +69,7 @@ class Lexer:
     
     def advance(self): 
         self.pos.advanced(self.current_char)
-        self.current_char = self.text[self.pos] if self.pos < len(self.text) else None
+        self.current_char = self.text[self.pos.idx] if self.pos.idx < len(self.text) else None
         
     def generate_tokens(self):
         tokens = []
@@ -115,7 +114,6 @@ class Lexer:
             return Token(TT_INT, int(num_str))
         else: 
             return Token(TT_FLOAT, float(num_str))  
-        
         
 # run
 
