@@ -109,7 +109,7 @@ KEYWORDS = [
 ]
 
 class Token:
-    def __init__(self, type_, value=None, pos_start=None, post_end=None):
+    def __init__(self, type_, value=None, pos_start=None, pos_end=None):
         self.type = type_
         self.value = value
 
@@ -118,8 +118,8 @@ class Token:
             self.pos_end = pos_start.copy()
             self.pos_end.advance()
 
-        if post_end:
-            self.pos_end = post_end.copy()
+        if pos_end:
+            self.pos_end = pos_end.copy()
 
     def matches(self, type_, value):
         return self.type == type_ and self.value == value
@@ -232,7 +232,7 @@ class Lexer:
 
         if self.current_char == '=':
             self.advance()
-            return Token(TT_NE, pos_start=pos_start, post_end=self.pos), None
+            return Token(TT_NE, pos_start=pos_start, pos_end=self.pos), None
         
         self.advance()
         return None, ExpectedCharError(pos_start, self.pos, "'=' (after '!')")
@@ -427,7 +427,7 @@ class Parser:
         return self.bin_op(self.factor, (TT_MUL, TT_DIV))
     
     def arith_expr(self):
-        return self.bin_op(self.term(TT_PLUS, TT_MINUS))   
+        return self.bin_op(self.term, (TT_PLUS, TT_MINUS))   
 
     def comp_expr(self):
         res = ParserResult()
@@ -579,6 +579,43 @@ class Number:
         if isinstance(other, Number): 
             return Number(self.value ** other.value).set_context(self.context), None          
         
+    def get_comparison_eq(self, other):
+        if isinstance(other, Number):
+            return Number(int(self.value == other.value)).set_context(self.context), None
+
+    def get_comparison_ne(self, other):
+        if isinstance(other, Number):
+            return Number(int(self.value != other.value)).set_context(self.context), None
+
+    def get_comparison_lt(self, other):
+        if isinstance(other, Number):
+            return Number(int(self.value < other.value)).set_context(self.context), None
+
+    def get_comparison_gt(self, other):
+        if isinstance(other, Number):
+            return Number(int(self.value > other.value)).set_context(self.context), None
+
+    def get_comparison_lte(self, other):
+        if isinstance(other, Number):
+            return Number(int(self.value <= other.value)).set_context(self.context), None
+
+    def get_comparison_gte(self, other):
+        if isinstance(other, Number):
+            return Number(int(self.value >= other.value)).set_context(self.context), None
+        
+        
+    def anded_by(self, other):
+        if isinstance(other, Number):
+            return Number(int(self.value and other.value)).set_context(self.context), None
+
+    def ored_by(self, other):
+        if isinstance(other, Number):
+            return Number(int(self.value or other.value)).set_context(self.context), None
+
+        
+    def notted(self):
+        return Number(1 if self.value == 0 else 0).set_context(self.context), None
+
     def copy(self):
         copy = Number(self.value)
         copy.set_pos(self.pos_start, self.pos_end)
@@ -667,7 +704,7 @@ class Interpreter:
             right = res.register(self.visit(node.right_node, context))
             if res.error:return res 
 
-            
+                
             if node.op_tok.type == TT_PLUS:
                 result, error = left.added_to(right)
             elif node.op_tok.type == TT_MINUS:
@@ -682,7 +719,18 @@ class Interpreter:
                 result, error = left.get_comparison_eq(right)
             elif node.op_tok.type == TT_NE:
                 result, error = left.get_comparison_ne(right)
-
+            elif node.op_tok.type == TT_LT:
+                result, error = left.get_comparison_lt(right)
+            elif node.op_tok.type == TT_GT:
+                result, error = left.get_comparison_gt(right)
+            elif node.op_tok.type == TT_LTE:
+                result, error = left.get_comparison_lte(right)
+            elif node.op_tok.type == TT_GTE:
+                result, error = left.get_comparison_gte(right)
+            elif node.op_tok.matches(TT_KEYWORD, 'AND'):
+                result, error = left.anded_by(right)
+            elif node.op_tok.matches(TT_KEYWORD, 'OR'):
+                result, error = left.ored_by(right)
 
             if error:
                 return res.failure(error)
@@ -698,6 +746,8 @@ class Interpreter:
             
             if node.op_tok.type == TT_MINUS:
                 number, error = number.multed_by(Number(-1))
+            elif node.op_tok.matches(TT_KEYWORD, 'NOT'):
+                number, error = number.notted()
             
             if error:
                 return res.failure(error)
