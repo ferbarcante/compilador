@@ -8,13 +8,13 @@ Abaixo, você encontrará o guia definitivo de uso da linguagem e a especificaç
 
 A declaração de variáveis é feita através da palavra-chave VAR. Por ser uma linguagem baseada em expressões, você pode atribuir valores estáticos ou o resultado de blocos inteiros de código.
 
-`Plaintext
+
     # Atribuição simples
     VAR idade = 27
 
     # Atribuição a partir de uma expressão condicional
     VAR preco = IF idade >= 18 THEN 40 ELSE 20
-`
+
 
 ## Estruturas Condicionais (IF, ELIF, ELSE)
 
@@ -24,16 +24,15 @@ O IF suporta duas abordagens de sintaxe: Inline (linha única) e Multilinha (blo
 
 Ideal para avaliações rápidas. Não exige a palavra-chave END.
 
-`Plaintext
+
 
     IF x > 10 THEN PRINT("Maior") ELIF x == 10 THEN PRINT("Igual") ELSE PRINT("Menor")
-`
+
 
 ### Sintaxe Multilinha (Blocos)
 
 Usado para executar múltiplas instruções. Exige a palavra-chave END para fechar o escopo.
 
-`Plaintext
 
     IF idade >= 18 THEN
         PRINT("Maior de idade")
@@ -43,7 +42,7 @@ Usado para executar múltiplas instruções. Exige a palavra-chave END para fech
     ELSE
         PRINT("Menor de idade")
     END
-`
+
 
 ## Laços de Repetição (FOR e WHILE)
 
@@ -55,34 +54,34 @@ Itera sobre uma sequência de números. Você pode opcionalmente definir um pass
 
 #### Inline (Exemplo de Fatorial):
     
-`Plaintext
+
 
     VAR result = 1
     FOR i = 1 TO 10 THEN result = result * i
-`
+
 
 #### Multilinha:
 
-`Plaintext
+
 
     FOR i = 0 TO 10 STEP 2 THEN 
         PRINT("Número par:")
         PRINT(i)
     END
-`
+
 
 ### O Laço WHILE
 
 Executa um bloco de código repetidamente enquanto a condição for verdadeira.
 
-`Plaintext
+
 
     VAR contador = 0
     WHILE contador < 10 THEN
         PRINT(contador)
         VAR contador = contador + 1
     END
-`
+
 
 ## Funções (FUN)
 
@@ -92,29 +91,24 @@ Funções são declaradas com a palavra-chave FUN e podem ser nomeadas ou anôni
 
 Usam a seta -> para retornar o valor avaliado na mesma linha, sem necessidade de END ou RETURN.
 
-`Plaintext
-
     FUN soma(a, b) -> a + b
-`
+
 ### Funções Multilinha
 
 Quando há lógica complexa, o corpo da função é escrito em várias linhas, finalizado por END e retornando valores através de RETURN.
-
-`Plaintext
 
     FUN saudacao(nome)
         VAR mensagem = "Olá, " + nome
         PRINT(mensagem)
         RETURN mensagem
     END
-`
 
 ## Entrada e Saída
 
 A Nandael possui funções nativas (built-ins) para interação com o usuário:
 
 - PRINT(valor): Exibe informações no terminal. É possível colocar múltiplas instruções na mesma linha separando com ponto e vírgula ;.
-
-`Plaintext
+ 
+`
     PRINT("hello"); PRINT("world")
 `
