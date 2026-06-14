@@ -2155,6 +2155,164 @@ class Interpreter:
 
     def visit_BreakNode(self, node, context):
         return RTResult().success_break()
+
+
+# TAC GENERATOR (Código Intermediário)
+
+
+class TACGenerator:
+    def __init__(self):
+        self.instructions = []
+        self.temp_count = 0
+        self.label_count = 0
+
+    def new_temp(self):
+        self.temp_count += 1
+        return f"t{self.temp_count}"
+
+    def new_label(self):
+        self.label_count += 1
+        return f"L{self.label_count}"
+
+    def emit(self, instruction):
+        self.instructions.append(instruction)
+
+    def visit(self, node, context):
+        method_name = f'visit_{type(node).__name__}'
+        method = getattr(self, method_name, self.no_visit_method)
+        return method(node, context)
+
+    def no_visit_method(self, node, context):
+        # Ignora nós não implementados para focar no speedrun
+        return RTResult().success("null")
+
+    def visit_NumberNode(self, node, context):
+        res = RTResult()
+        # Retorna o próprio número como string
+        return res.success(str(node.tok.value))
+
+    def visit_StringNode(self, node, context):
+        res = RTResult()
+        return res.success(f'"{node.tok.value}"')
+
+    def visit_VarAccessNode(self, node, context):
+        res = RTResult()
+        return res.success(node.var_name_tok.value)
+
+    def visit_VarAssignNode(self, node, context):
+        res = RTResult()
+        var_name = node.var_name_tok.value
+        value = res.register(self.visit(node.value_node, context))
+        if res.should_return(): return res
+        
+        self.emit(f"{var_name} = {value}")
+        return res.success(var_name)
+
+    def visit_BinOpNode(self, node, context):
+        res = RTResult()
+        left = res.register(self.visit(node.left_node, context))
+        if res.should_return(): return res 
+        right = res.register(self.visit(node.right_node, context))
+        if res.should_return(): return res 
+
+        op_map = {
+            TT_PLUS: '+', TT_MINUS: '-', TT_MUL: '*', TT_DIV: '/',
+            TT_EE: '==', TT_NE: '!=', TT_LT: '<', TT_GT: '>', 
+            TT_LTE: '<=', TT_GTE: '>='
+        }
+        op = op_map.get(node.op_tok.type, node.op_tok.value)
+
+        temp = self.new_temp()
+        self.emit(f"{temp} = {left} {op} {right}")
+        return res.success(temp)
+
+    def visit_UnaryOpNode(self, node, context):
+        res = RTResult()
+        val = res.register(self.visit(node.node, context))
+        if res.should_return(): return res
+        
+        temp = self.new_temp()
+        op = "-" if node.op_tok.type == TT_MINUS else "NOT"
+        self.emit(f"{temp} = {op} {val}")
+        return res.success(temp)
+
+    def visit_IfNode(self, node, context):
+        res = RTResult()
+        l_end = self.new_label()
+        
+        for condition, expr, _ in node.cases:
+            l_next = self.new_label()
+            cond_var = res.register(self.visit(condition, context))
+            if res.should_return(): return res
+            
+            self.emit(f"IF_FALSE {cond_var} GOTO {l_next}")
+            res.register(self.visit(expr, context))
+            if res.should_return(): return res
+            self.emit(f"GOTO {l_end}")
+            self.emit(f"{l_next}:")
+            
+        if node.else_case:
+            else_expr, _ = node.else_case
+            res.register(self.visit(else_expr, context))
+            if res.should_return(): return res
+            
+        self.emit(f"{l_end}:")
+        return res.success("null")
+
+    def visit_WhileNode(self, node, context):
+        res = RTResult()
+        l_start = self.new_label()
+        l_end = self.new_label()
+
+        self.emit(f"{l_start}:")
+        
+        cond_var = res.register(self.visit(node.condition_node, context))
+        if res.should_return(): return res
+        
+        self.emit(f"IF_FALSE {cond_var} GOTO {l_end}")
+        
+        res.register(self.visit(node.body_node, context))
+        if res.should_return(): return res
+        
+        self.emit(f"GOTO {l_start}")
+        self.emit(f"{l_end}:")
+        return res.success("null")
+
+    def visit_CallNode(self, node, context):
+        res = RTResult()
+        
+        args = []
+        for arg_node in node.arg_nodes:
+            args.append(res.register(self.visit(arg_node, context)))
+            if res.should_return(): return res
+            
+        # Pega o nome da função/variável
+        if isinstance(node.node_to_call, VarAccessNode):
+            func_name = node.node_to_call.var_name_tok.value
+            
+            # Tratamento especial para o PRINT que é nativo
+            if func_name == "PRINT":
+                self.emit(f"PRINT {args[0]}")
+                return res.success("null")
+                
+        # Para outras funções gerais
+        func_name = res.register(self.visit(node.node_to_call, context))
+        if res.should_return(): return res
+        
+        for arg in args:
+            self.emit(f"PARAM {arg}")
+        temp = self.new_temp()
+        self.emit(f"{temp} = CALL {func_name}, {len(args)}")
+        return res.success(temp)
+
+    def visit_ListNode(self, node, context):
+        res = RTResult()
+        for element_node in node.element_nodes:
+            res.register(self.visit(element_node, context))
+            if res.should_return(): return res
+        return res.success("null")
+
+
 # run
 
 global_symbol_table = SymbolTable()
@@ -2187,10 +2345,22 @@ def run(fn, text):
     parser = Parser(tokens)
     ast = parser.parse()
     if ast.error: return None, ast.error
-
-    interpreter = Interpreter()
+    
+    # gera cod intermediario
+    tac_gen = TACGenerator()
     context = Context('<program>')
-    context.symbol_table = global_symbol_table
-    result = interpreter.visit(ast.node, context)
+    result = tac_gen.visit(ast.node, context)
+    
+    # mostra tac na tela
+    print("\n CÓDIGO INTERMEDIÁRIO ")
+    for instr in tac_gen.instructions:
+        print(instr)
+    print("-----------------------------------")
 
-    return result.value, result.error
+    class TacResult:
+        def __init__(self, instructions):
+            self.elements = instructions
+        def __repr__(self):
+            return "\n".join(self.elements)
+            
+    return TacResult(tac_gen.instructions), None
